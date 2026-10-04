@@ -46,21 +46,32 @@
   vitest ^4.1.8, jsdom 29.1.1, testing-library.
 - Ловушка песочницы: npm/pnpm-кэш обязан быть внутри ~/hq (`--cache`), иначе EPERM.
 
-### Точки внесения патчей в src/
+### Точки внесения патчей в src/ (обновлено под KICKOFF v2 — 7 патчей)
 - Патч 1 (язык): `src/client/locales.ts` — функция `dictionary()`; фолбэк
   `(document.documentElement.lang || "zh").toLowerCase().startsWith("zh") ? zh : en`.
   Эталон: `lib/client.js` ~стр.181.
-- Патчи 2–3 (виджет): `src/client/UsageFootCard.tsx` — HQ-функции `providerLogo(id)`
-  и `planRows(snapshot)` + блок рендера `data-dsh-part: "foot-card-plans"`.
-  Эталон: `lib/client.js` ~стр.1886–1940 (функции) и ~стр.2066+ (рендер).
+- Патчи 2, 3, 5, 7, 8 (виджет): `src/client/UsageFootCard.tsx` — HQ-функции
+  `providerLogo(id)`, `planRows(snapshot)`, `paygRows(snapshot)`, `resetCountdown(iso)`
+  + рендер (чипы свёрнутой полоски, заголовок «LIMITS», иерархические строки
+  `foot-card-plans`, PAYG-блок). Эталон (финальный UI, проверен 04.10.2026 вечером):
+  `lib/client.js` ~стр.1886 (providerLogo — 8 провайдеров, включая minimax/opencode-go/
+  deepseek/moonshotai→kimi/openrouter/siliconflow), ~стр.1910 (planRows — фильтрует
+  month-code, хранит resetsAt, порядок OpenAI→ZAI→Kimi→OpenCode→MiniMax), ~стр.1922
+  (paygRows — credential≠none && balance≠undefined, CNY/7.2, пороги <$1/<$10),
+  ~стр.1934 (resetCountdown), ~стр.2039–2140 (рендер: чипы ~2052, «LIMITS» ~2084,
+  foot-card-plans ~2092, PAYG ~2116).
   Классы шкал уже есть в `src/client/usage.module.css` (`bar`/`barFill`/`barWarn`/
   `barLow`, warn `#d97706`, low `#dc2626`) — CSS менять не нужно, только рендер.
-  Пороги виджета: warn ≥50%, low ≥80% (в коде рендера foot-card).
+  Пороги виджета: warn ≥50%, low ≥80%.
 - Патч 4 (Kimi): `src/core/adapters.ts` — адаптер `KIMI_CODING.parse`. Upstream ждёт
   `body.usage`; Kimi отдаёт `body.usages` с `limit_5h`, `limit_month_total`,
   `limit_month_code`. Эталон: `lib/index.js` ~стр.366 (url), ~стр.401+ (парсинг
   `usages`, ключи окон `month`/`month-code`, percent = used_ratio*100, resetsAt из
   reset_time, дедуп по key). Недельного окна у Kimi нет — не рисовать.
+- Лого-исходники: path-данные в эталонном lib/ уже верные, но по KICKOFF их надо
+  взять заново с cdn.simpleicons.org / Wikimedia / opencode.ai/favicon-v3.svg /
+  framerusercontent и закоммитить копии в `docs/` репозитория (кэш /tmp/logo_*.svg
+  не вечен).
 
 ### Переименование
 - `package.json`: name → `dsh-usage-hq` (unscoped).
@@ -78,9 +89,9 @@
 
 ### Эквивалентность (критерий фазы)
 - Поведенческий diff: собранный из форка `lib/` vs текущий пропатченный `lib/` по
-  функциям `dictionary`, `providerLogo`, `planRows`, `UsageFootCard`,
-  `KIMI_CODING.parse` — diff пуст или эквивалентен (допустимы только переименования
-  id/имени пакета).
+  функциям `dictionary`, `providerLogo`, `planRows`, `paygRows`, `resetCountdown`,
+  `UsageFootCard`, `KIMI_CODING.parse` — diff пуст или эквивалентен (допустимы только
+  переименования id/имени пакета).
 
 ## Рекомендации планировщику
 - План-структура: 1) копия базы + конфиги/tests из GitHub upstream; 2) переименование;
