@@ -35,6 +35,10 @@
   (проверено GitHub Contents API 04.10.2026: присутствуют tsconfig.json 493B,
   tsconfig.build.json 236B, tsconfig.test.json 477B, tsconfig.vitest.json 923B,
   tsdown.config.ts 136B, vitest.config.ts 600B, tests/, assets/).
+- ✓ 04.10.2026: пробный fetch из сессии прошёл — все 6 конфигов скачаны (сеть из
+  песочницы к raw.githubusercontent.com работает); tests/ содержит 12 spec-файлов:
+  adapters, apply, foot-card-mount, foot-card, holidays, ledger, pricing,
+  provider-routes, routes, section-card, usage-service, voucher.
 - Вывод для плана: база = npm-пакет (lib+src+кредиты) + конфиги и tests/ из GitHub upstream.
 
 ### Зависимости и сборка (из package.json npm-пакета)
