@@ -1,0 +1,32 @@
+{
+  "project": "dsh-usage-hq",
+  "entries": [
+    {
+      "ts": "2026-10-04T21:31:00+03:00",
+      "role": "planner",
+      "phase": "1",
+      "route": "kimi-coding/kimi-for-coding high",
+      "outcome": "env_failure",
+      "evidence": "subagent edf664e3 failed before finishing: «Недействительный ключ API»",
+      "note": "Environment/auth failure, NOT model quality. Smoke test kimi-for-coding-highspeed 23:27 passed («OK»)."
+    },
+    {
+      "ts": "2026-10-04T23:32:00+03:00",
+      "role": "planner",
+      "phase": "1",
+      "route": "kimi-coding/kimi-for-coding high",
+      "outcome": "env_failure",
+      "evidence": "subagent eb6042b8 failed before finishing, no closing message, no PLAN.md on disk",
+      "note": "Second Kimi planner crash. Per KICKOFF fallback policy: planner rerouted to zai-coding-cn/glm-5.3 max (subagent 858df8b7). Plan-checker stays on Kimi → cross-family review (GLM plans, Kimi checks)."
+    },
+    {
+      "ts": "2026-10-04T21:20:00+03:00",
+      "role": "ui-researcher",
+      "phase": "1",
+      "route": "kimi-coding/kimi-for-coding high",
+      "outcome": "stalled_interrupted",
+      "evidence": "subagent 40cae713 produced no UI-SPEC.md in ~20 min; interrupted by orchestrator",
+      "note": "UI-SPEC written by orchestrator from ground-truth code instead; checker (kimi-for-coding-highspeed) verified it."
+    }
+  ]
+}
