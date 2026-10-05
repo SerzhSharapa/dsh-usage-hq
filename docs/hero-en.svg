@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 200" font-family="monospace">
+  <defs>
+    <marker id="ar" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#4a9eda"/>
+    </marker>
+  </defs>
+  <rect width="780" height="200" fill="#fafbfc" rx="12"/>
+
+  <!-- Left character: developer checking subscription limits -->
+  <g transform="translate(60,66)">
+    <rect x="14" y="0" width="28" height="7" fill="#8B5E3C"/>
+    <rect x="7" y="7" width="42" height="7" fill="#8B5E3C"/>
+    <rect x="7" y="14" width="42" height="7" fill="#FFDAB9"/>
+    <rect x="14" y="21" width="7" height="7" fill="#FFDAB9"/>
+    <rect x="35" y="21" width="7" height="7" fill="#FFDAB9"/>
+    <rect x="14" y="21" width="7" height="7" fill="#333"/>
+    <rect x="35" y="21" width="7" height="7" fill="#333"/>
+    <rect x="21" y="28" width="14" height="7" fill="#D4956A"/>
+    <rect x="0" y="35" width="56" height="14" fill="#4A9EDA"/>
+    <rect x="0" y="49" width="56" height="7" fill="#4A9EDA"/>
+    <rect x="7" y="56" width="14" height="7" fill="#444"/>
+    <rect x="35" y="56" width="14" height="7" fill="#444"/>
+  </g>
+
+  <!-- Speech bubble from the character -->
+  <rect x="150" y="52" width="230" height="30" fill="#e8f4fd" stroke="#4a9eda" stroke-width="1.5" rx="8"/>
+  <polygon points="148,66 139,72 148,71" fill="#e8f4fd" stroke="#4a9eda" stroke-width="1.5"/>
+  <rect x="147" y="65" width="3" height="7" fill="#e8f4fd"/>
+  <text x="164" y="72" font-size="13px">Kimi 5h — reset in 2h48m</text>
+
+  <!-- Arrow to the widget card -->
+  <line x1="265" y1="96" x2="352" y2="96" stroke="#4a9eda" stroke-width="2" marker-end="url(#ar)"/>
+  <text x="272" y="114" font-size="11px" fill="#666">every 30s</text>
+
+  <!-- Pixel sidebar limits card -->
+  <rect x="360" y="34" width="380" height="132" fill="#ffffff" stroke="#333" stroke-width="1.5" rx="8"/>
+  <text x="376" y="58" font-size="13px" font-weight="bold" letter-spacing="2">LIMITS</text>
+  <text x="648" y="58" font-size="11px" fill="#999">11:18</text>
+
+  <text x="376" y="80" font-size="11px" font-weight="bold">OpenAI</text>
+  <rect x="470" y="72" width="150" height="7" fill="#eee" rx="3"/>
+  <rect x="470" y="72" width="150" height="7" fill="#dc2626" rx="3"/>
+  <text x="630" y="81" font-size="11px" fill="#dc2626">100%</text>
+
+  <text x="376" y="102" font-size="11px" font-weight="bold">ZAI (GLM)</text>
+  <rect x="470" y="94" width="150" height="7" fill="#eee" rx="3"/>
+  <rect x="470" y="94" width="75" height="7" fill="#d97706" rx="3"/>
+  <text x="630" y="103" font-size="11px" fill="#d97706">50%</text>
+
+  <text x="376" y="124" font-size="11px" font-weight="bold">Kimi</text>
+  <rect x="470" y="116" width="150" height="7" fill="#eee" rx="3"/>
+  <rect x="470" y="116" width="12" height="7" fill="#999" rx="3"/>
+  <text x="630" y="125" font-size="11px" fill="#555">8%</text>
+
+  <text x="376" y="148" font-size="9px" font-weight="bold" fill="#999">PAYG</text>
+  <text x="376" y="162" font-size="11px" fill="#777">OpenRouter</text>
+  <text x="630" y="162" font-size="11px" font-weight="bold" fill="#dc2626">$0.77</text>
+</svg>

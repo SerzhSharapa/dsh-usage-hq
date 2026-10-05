@@ -1,11 +1,11 @@
+[English](README.md) | [Русский](README.ru.md) | [中文](README.zh.md)
+
 <h1 align="center">dsh-usage-hq</h1>
 
 <p align="center">A DeepSeek Harness plugin that shows coding-subscription limits and PAYG balances in the sidebar — a maintained fork of <code>@linxin666/dsh-usage</code> with an HQ-limits widget.</p>
 
 <p align="center">
-  <a href="#english">English</a> ·
-  <a href="#русский">Русский</a> ·
-  <a href="#中文">中文</a>
+  <img alt="dsh-usage-hq — limits widget" src="docs/hero-en.svg" width="640" />
 </p>
 
 <p align="center">
@@ -20,8 +20,6 @@
   &nbsp;&nbsp;
   <img alt="Collapsed limits strip" src="docs/screenshot-collapsed.png" width="280" />
 </p>
-
-# English
 
 ## What it does
 
