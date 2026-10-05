@@ -62,5 +62,5 @@ Phases execute in numeric order: 1 → 2 → 3
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Форк и перенос патчей | 3/3 | ✓ Verified (provisional) | 2026-10-05 |
-| 2. Сборка, тесты и документация | — | ✓ Verified (DOCS-03 скриншоты deferred) | 2026-10-05 |
-| 3. Публикация и подмена в профиле | 0/TBD | Not started | - |
+| 2. Сборка, тесты и документация | — | ✓ Verified (скриншоты добавлены) | 2026-10-05 |
+| 3. Публикация и подмена в профиле | — | ✓ Verified (published + live) | 2026-10-05 |
