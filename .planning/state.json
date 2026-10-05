@@ -1,0 +1,28 @@
+{
+  "contract": "1.0.0",
+  "flavor": "core",
+  "milestone": null,
+  "phases": [
+    {
+      "number": "1",
+      "name": "Форк и перенос патчей",
+      "status": "pending"
+    },
+    {
+      "number": "2",
+      "name": "Сборка, тесты и документация",
+      "status": "pending"
+    },
+    {
+      "number": "3",
+      "name": "Публикация и подмена в профиле",
+      "status": "pending"
+    }
+  ],
+  "next": {
+    "command": "/gsd:progress --next",
+    "label": "Advance to the next step",
+    "reason": "Phase 01 of 3 · 0% · executing"
+  },
+  "updated_at": "2026-10-05T07:45:04.796Z"
+}
