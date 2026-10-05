@@ -206,6 +206,25 @@ const KIMI_CODING: ProviderAdapter = {
           resetsAt: toIso(weekly.resetTime),
         })
       }
+      // HQ patch: Kimi's new API shape — `usages` with used_ratio rows
+      // (limit_5h / limit_month_total / limit_month_code); no weekly window.
+      const usages = root.usages
+      if (typeof usages === 'object' && usages !== null) {
+        const rows = usages as Record<string, unknown>
+        for (const [field, key, name] of [
+          ['limit_month_total', 'month', 'Monthly'],
+          ['limit_month_code', 'month-code', 'Monthly (code)'],
+        ] as const) {
+          const entry = rows[field]
+          if (typeof entry !== 'object' || entry === null) continue
+          const detail = entry as Record<string, unknown>
+          const ratio = toNum(detail.used_ratio)
+          const pct = ratio === undefined ? undefined : Math.max(0, Math.min(100, Math.round(ratio * 100)))
+          if (pct === undefined) continue
+          if (windows.some((w) => w.key === key)) continue
+          windows.push({ key, name, percent: pct, resetsAt: toIso(detail.reset_time) })
+        }
+      }
       if (windows.length === 0) return undefined
       const user = root.user
       const membership = typeof user === 'object' && user !== null ? (user as Record<string, unknown>).membership : undefined
