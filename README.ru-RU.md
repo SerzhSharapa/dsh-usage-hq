@@ -14,11 +14,6 @@
   <img alt="base" src="https://img.shields.io/badge/upstream%20base-0.4.4-green" />
 </p>
 
-<p align="center">
-  <img alt="Развёрнутый виджет лимитов" src="docs/screenshot-expanded.png" width="280" />
-  &nbsp;&nbsp;
-  <img alt="Свёрнутая полоска лимитов" src="docs/screenshot-collapsed.png" width="280" />
-</p>
 
 # Русский
 
