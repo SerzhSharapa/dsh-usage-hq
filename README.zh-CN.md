@@ -15,6 +15,12 @@
 </p>
 
 
+<p align="center">
+  <img alt="Expanded limits widget" src="docs/screenshot-expanded.png" width="280" />
+  &nbsp;&nbsp;
+  <img alt="Collapsed limits strip" src="docs/screenshot-collapsed.png" width="280" />
+</p>
+
 # 中文
 
 ## 功能
