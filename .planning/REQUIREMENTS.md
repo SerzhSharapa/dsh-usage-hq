@@ -9,7 +9,7 @@
 
 ### База форка (BASE)
 
-- [ ] **BASE-01**: Пакет `@linxin666/dsh-usage@0.4.4` (lib, src, LICENSE, cordis.patch.yml, icon.svg, README-исходники upstream) скопирован из `~/.dsh/profiles/desktop/node_modules/` как стартовая база; недостающие конфиги сборки (tsconfig*.json, tsdown.config.ts, vitest.config.ts) и tests/ взяты из upstream GitHub (ветка dev, packages/dsh-usage/)
+- [ ] **BASE-01**: Пакет `@linxin666/dsh-usage@0.4.4` (src, LICENSE, cordis.patch.yml, icon.svg, README-исходники upstream) скопирован из `~/.dsh/profiles/desktop/node_modules/` как стартовая база; каталог `lib/` НЕ копируется (это build output — пересобирается в BUILD-04, эталон для diff читается по месту в node_modules); недостающие конфиги сборки (tsconfig*.json, tsdown.config.ts, vitest.config.ts) и tests/ взяты из upstream GitHub (ветка dev, packages/dsh-usage/)
 - [ ] **BASE-02**: Лицензия Apache-2.0 сохранена; NOTICE/кредит автору `@linxin666` (upstream zhu1090093659/dsh-web) присутствует; в README объявлено происхождение («fork of…»)
 - [ ] **BASE-03**: Пакет переименован в `dsh-usage-hq` (unscoped, по аналогии с dsh-stt-multi/dsh-tls-fallback)
 - [ ] **BASE-04**: Plugin/bundle id сменён на `hq-usage` в собственном cordis.patch.yml пакета и в профиле desktop; RPC-неймспейс `dsh-usage.*` и state-директория `~/.dsh/dsh-usage/` НЕ переименованы (существующие данные профиля продолжают читаться)

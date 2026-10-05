@@ -1,0 +1,9 @@
+# dsh-usage-hq bundle patch: inserts its plugin row into the web plugin roster.
+# Fork of @linxin666/dsh-usage (upstream zhu1090093659/dsh-web, Apache-2.0).
+# The single row mounts BOTH halves: the host side (usage ledger, provider
+# balance/plan probes, dsh-usage.* RPC routes) and the browser side (the
+# modules node half scans dsh.client packages into the web plugin roster,
+# served from this package's lib/client.js).
+- insert:
+    - id: hq-usage
+      name: 'dsh-usage-hq'
