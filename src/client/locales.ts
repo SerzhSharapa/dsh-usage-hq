@@ -134,7 +134,8 @@ export type UsageKey = keyof typeof zh
  */
 export function dictionary(): Record<UsageKey, string> {
   const lang = typeof document !== 'undefined' ? document.documentElement.lang : 'zh'
-  return lang.toLowerCase().startsWith('en') ? en : zh
+  // HQ patch: inverted fallback — non-zh locales get English, not Chinese.
+  return lang.toLowerCase().startsWith('zh') ? zh : en
 }
 
 /** Translate a key with optional `{name}` template params; missing keys degrade to the key. */
