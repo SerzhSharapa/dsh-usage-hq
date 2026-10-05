@@ -1,11 +1,13 @@
 /** @vitest-environment jsdom */
 
 /**
- * The sidebar foot card's content rules: a price-first headline (today's
- * estimated spend, falling back to today's tokens when nothing priced was
- * recorded), the tokens/calls line, at most two configured-provider balances
- * with a +N overflow, and the visibility gates (settings flag off or a 404
- * host answer hides the card; other failures keep the last snapshot).
+ * The sidebar limits foot card's content rules (HQ fork, final UI iteration 5):
+ * a "LIMITS" caption with the updated-at clock, one hierarchical block per
+ * subscription provider (logo + name + dominant percent, then per-window rows
+ * with label, 5px bar, percent and reset countdown), an optional dimmed PAYG
+ * block for pay-as-you-go providers with a live balance, and a collapsed strip
+ * of logo+percent chips. The month-code window never reaches the widget; the
+ * visibility gates (settings flag off, 404 host) are unchanged from upstream.
  */
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -14,7 +16,7 @@ import type { ConfigForm, ConfigFormSnapshot } from '@deepseek-ai/dsh-client-ui-
 import { FOOT_CARD_COLLAPSED_KEY, UsageFootCard, type UsageFootCardProps } from '../src/client/UsageFootCard.tsx'
 import type { UsageSettings } from '../src/client/UsageSectionCard.tsx'
 import type { UsageStoreInstance, UsageUiState } from '../src/client/usage-store.ts'
-import { emptyTotals, type ProviderSnapshotView, type UsageOverviewView } from '../src/core/types.ts'
+import { emptyTotals, type PlanWindowView, type ProviderSnapshotView, type UsageOverviewView } from '../src/core/types.ts'
 
 /** Previous localStorage descriptor, restored after each test. */
 let originalStorage: PropertyDescriptor | undefined
@@ -47,6 +49,9 @@ function installStorage(): PropertyDescriptor | undefined {
 beforeEach(() => {
   originalStorage = installStorage()
   window.localStorage.clear()
+  // HQ fallback: pin zh where the zh copy is asserted; the inverted default
+  // (non-zh => en) has its own dedicated test below.
+  document.documentElement.lang = 'zh'
 })
 
 afterEach(() => {
@@ -58,6 +63,11 @@ afterEach(() => {
 /** A wire provider row with view defaults; callers override the credential. */
 function provider(row: Partial<ProviderSnapshotView> & Pick<ProviderSnapshotView, 'provider'>): ProviderSnapshotView {
   return { displayName: row.provider, credential: 'none', supported: true, ...row }
+}
+
+/** A subscription provider carrying plan windows. */
+function planProvider(row: Partial<ProviderSnapshotView> & Pick<ProviderSnapshotView, 'provider'>, windows: PlanWindowView[]): ProviderSnapshotView {
+  return provider({ ...row, planSupported: true, plan: { windows, updatedAt: 1 } })
 }
 
 /** A minimal overview document; the today bucket and provider list are the caller's. */
@@ -148,123 +158,249 @@ function cardProps(over: UsageOverviewView | null, extra: Partial<UsageFootCardP
   }
 }
 
+/** Reset countdown pointing `minutes` into the future (30s margin against clock drift). */
+function inMinutes(minutes: number): string {
+  return new Date(Date.now() + minutes * 60_000 + 30_000).toISOString()
+}
+
+/** The canonical subscription roster: fixed-order providers plus a catch-all. */
+const roster = (): ProviderSnapshotView[] => [
+  planProvider({ provider: 'kimi-coding', displayName: 'Kimi For Coding' }, [
+    { key: '5h', percent: 30, resetsAt: inMinutes(4 * 60 + 12) },
+    { key: 'month', percent: 55, resetsAt: inMinutes(6 * 24 * 60 + 180) },
+  ]),
+  planProvider({ provider: 'openai-codex', displayName: 'Codex' }, [
+    { key: 'week', percent: 85 },
+  ]),
+  planProvider({ provider: 'zai-coding-cn', displayName: 'GLM Coding Plan' }, [
+    { key: '5h', percent: 10 },
+    { key: 'week', percent: 40 },
+  ]),
+]
+
 const deepseekBalance = provider({ provider: 'deepseek', displayName: 'DeepSeek', credential: 'env', balanceSupported: true, balance: { currency: 'CNY', totalBalance: '42.00', updatedAt: 1 } })
 
-describe('UsageFootCard content', () => {
-  it('user sees today spend with the tokens and calls line', () => {
-    // Given an overview whose today bucket carries priced DeepSeek usage
-    document.documentElement.lang = 'zh'
-    const over = overview([deepseekBalance], { inputTokens: 10_000, outputTokens: 2300, calls: 45, cost: 12.34 })
+describe('UsageFootCard content (final UI)', () => {
+  it('user sees the LIMITS caption, the clock and one block per subscription', () => {
+    // Given an overview whose providers carry plan windows
+    const { container } = render(<UsageFootCard {...cardProps(overview(roster()))} />)
 
-    // When the foot card renders
-    const { container } = render(<UsageFootCard {...cardProps(over)} />)
-
-    // Then the headline is the spend, with the compact tokens/calls line under it
-    const card = container.querySelector('[data-dsh-part="foot-card"]')
-    expect(card?.textContent).toContain('¥12.34')
-    expect(card?.textContent).toContain('今日消费')
-    expect(container.querySelector('[data-dsh-part="foot-card-usage"]')?.textContent).toBe('12.3k tokens · 45 次调用')
-  })
-
-  it('user sees the token headline when nothing today was priced', () => {
-    // Given an overview with unpriced usage only (cost stays 0)
-    document.documentElement.lang = 'zh'
-    const over = overview([], { inputTokens: 3000, calls: 3 })
-
-    // When the foot card renders
-    const { container } = render(<UsageFootCard {...cardProps(over)} />)
-
-    // Then the headline falls back to today's tokens under the usage label,
-    // and the sub-line keeps only the call count instead of repeating the total
-    const card = container.querySelector('[data-dsh-part="foot-card"]')
-    expect(card?.textContent).toContain('今日用量')
-    expect(card?.textContent).toContain('3k tokens')
-    expect(card?.textContent).not.toContain('¥0.00')
-    expect(container.querySelector('[data-dsh-part="foot-card-usage"]')?.textContent).toBe('3 次调用')
-  })
-
-  it('user sees zero spend and the no-data line on a day without usage', () => {
-    // Given an overview with an empty today bucket
-    document.documentElement.lang = 'zh'
-    const over = overview([deepseekBalance])
-
-    // When the foot card renders
-    const { container } = render(<UsageFootCard {...cardProps(over)} />)
-
-    // Then the headline reads zero and the quiet no-data line replaces the counts
-    const card = container.querySelector('[data-dsh-part="foot-card"]')
-    expect(card?.textContent).toContain('¥0.00')
-    expect(container.querySelector('[data-dsh-part="foot-card-usage"]')?.textContent).toBe('今日暂无用量')
-  })
-
-  it('user sees at most two balances with an overflow count', () => {
-    // Given three configured providers with probed balances
-    document.documentElement.lang = 'zh'
-    const over = overview([
-      deepseekBalance,
-      provider({ provider: 'zenmux', displayName: 'ZenMux', credential: 'api-key', balanceSupported: true, balance: { currency: 'USD', totalBalance: '3.10', updatedAt: 1 } }),
-      provider({ provider: 'openrouter', displayName: 'OpenRouter', credential: 'api-key', balanceSupported: true, balance: { currency: 'USD', totalBalance: '9.99', updatedAt: 1 } }),
-    ])
-
-    // When the foot card renders
-    const { container } = render(<UsageFootCard {...cardProps(over)} />)
-
-    // Then the first two balances render with their symbols and the third folds into +1
-    const line = container.querySelector('[data-dsh-part="foot-card-balances"]')?.textContent
-    expect(line).toBe('DeepSeek ¥42.00 · ZenMux $3.10 +1')
-  })
-
-  it('user never sees balances of unconfigured providers', () => {
-    // Given one unconfigured catalog row whose balance field is stale data
-    document.documentElement.lang = 'zh'
-    const over = overview([provider({ provider: 'zenmux', balance: { currency: 'USD', totalBalance: '3.10', updatedAt: 1 } })])
-
-    // When the foot card renders
-    const { container } = render(<UsageFootCard {...cardProps(over)} />)
-
-    // Then no balance line reaches the card
+    // Then the caption and the per-provider blocks render, tokens/balances/meta do not
+    const card = container.querySelector('[data-dsh-part="foot-card"]')!
+    expect(card.textContent).toContain('LIMITS')
+    const rows = container.querySelectorAll('[data-dsh-part="foot-card-plans"]')
+    expect(rows).toHaveLength(3)
+    expect(container.querySelector('[data-dsh-part="foot-card-usage"]')).toBeNull()
     expect(container.querySelector('[data-dsh-part="foot-card-balances"]')).toBeNull()
+    expect(container.querySelector('[data-dsh-part="foot-card-payg-sep"]')).toBeNull()
+    expect(container.querySelector('[data-dsh-part="foot-card-payg"]')).toBeNull()
   })
 
-  it('user opens the usage settings section from the card', () => {
-    // Given a rendered card
-    document.documentElement.lang = 'zh'
-    let opened = 0
-    const { container } = render(<UsageFootCard {...cardProps(overview([]), { onOpen: () => { opened += 1 } })} />)
+  it('user reads the providers in the fixed order OpenAI, ZAI (GLM), Kimi', () => {
+    // Given the roster declared out of order
+    const { container } = render(<UsageFootCard {...cardProps(overview(roster()))} />)
 
-    // When the user clicks the card body
-    const card = container.querySelector<HTMLButtonElement>('[data-dsh-part="foot-card-main"]')
-    fireEvent.click(card!)
-
-    // Then the open callback fires once and the card stays rendered
-    expect(opened).toBe(1)
-    expect(container.querySelector('[data-dsh-part="foot-card"]')?.textContent).toContain('今日消费')
+    // Then the provider blocks follow the HQ order (short names, not displayNames)
+    const names = [...container.querySelectorAll('[data-dsh-part="foot-card-plans"]')]
+      .map((row) => row.querySelector('span span:nth-child(2)')?.textContent)
+    expect(names).toEqual(['OpenAI', 'ZAI (GLM)', 'Kimi'])
   })
 
-  it('user reads the card in English after a language switch', () => {
-    // Given a zh-rendered card wired to a locale source
-    document.documentElement.lang = 'zh'
-    const locale = fakeLocale()
-    const over = overview([], { inputTokens: 10_000, outputTokens: 2300, calls: 45, cost: 12.34 })
-    const { container } = render(<UsageFootCard {...cardProps(over, { locale: locale.locale })} />)
-    expect(container.querySelector('[data-dsh-part="foot-card"]')?.textContent).toContain('今日消费')
+  it('user sees window rows with label, bar, percent and a reset countdown', () => {
+    // Given a Kimi row whose 5h window resets in 4h12m
+    const { container } = render(<UsageFootCard {...cardProps(overview(roster()))} />)
 
-    // When the document language switches to English
-    document.documentElement.lang = 'en'
-    act(() => { locale.emit() })
+    // Then each window row shows the localized label, a 5px bar, the percent
+    // and the compact countdown; the month-code window never reaches the widget
+    const kimi = container.querySelectorAll('[data-dsh-part="foot-card-plans"]')[2]!
+    expect(kimi.textContent).toContain('5h')
+    expect(kimi.textContent).toContain('30%')
+    expect(kimi.textContent).toContain('4h12m')
+    expect(kimi.textContent).toContain('mo')
+    expect(kimi.textContent).toContain('55%')
+    expect(kimi.textContent).toContain('6d3h')
+  })
 
-    // Then the card copy follows without a reload
-    expect(container.querySelector('[data-dsh-part="foot-card"]')?.textContent).toContain('Today spend')
+  it('user never sees the month-code window on the widget', () => {
+    // Given a Kimi row that also carries the month-code window
+    const roster2 = roster()
+    roster2[0] = planProvider({ provider: 'kimi-coding', displayName: 'Kimi For Coding' }, [
+      { key: '5h', percent: 30 },
+      { key: 'month', percent: 55 },
+      { key: 'month-code', percent: 90 },
+    ])
+    const { container } = render(<UsageFootCard {...cardProps(overview(roster2))} />)
+
+    // Then the widget skips it (it stays on the Plans tab)
+    const kimi = container.querySelectorAll('[data-dsh-part="foot-card-plans"]')[2]!
+    expect(kimi.textContent).not.toContain('90%')
+    expect(kimi.textContent).not.toContain('month-code')
+  })
+
+  it('the dominant percent and the bar warn below the 50/80 thresholds', () => {
+    // Given windows at 85% (low), 55% (warn) and 30% (plain)
+    const { container } = render(<UsageFootCard {...cardProps(overview(roster()))} />)
+
+    // Then the fill classes follow barWarn >=50 / barLow >=80, and the provider
+    // header percent shows the window maximum with the matching color
+    const fills = [...container.querySelectorAll('[data-dsh-part="foot-card-plans"] span span[class*="barFill"]')]
+    expect(fills.some((el) => el.className.includes('barLow'))).toBe(true)
+    expect(fills.some((el) => el.className.includes('barWarn'))).toBe(true)
+    const codex = container.querySelectorAll('[data-dsh-part="foot-card-plans"]')[0]!
+    expect(codex.textContent).toContain('85%')
+    // The dominant percent carries the threshold color as a style (≥80 → red)
+    const headerPercent = codex.firstElementChild!.lastElementChild as HTMLElement
+    expect(headerPercent.style.color).toBe('rgb(220, 38, 38)')
+  })
+
+  it('user sees the PAYG block only for configured providers with a live balance', () => {
+    // Given one configured balance (CNY 42) and one unconfigured stale row
+    const over = overview([
+      ...roster(),
+      deepseekBalance,
+      provider({ provider: 'zenmux', displayName: 'ZenMux', balance: { currency: 'USD', totalBalance: '3.10', updatedAt: 1 } }),
+    ])
+    const { container } = render(<UsageFootCard {...cardProps(over)} />)
+
+    // Then the PAYG section lists DeepSeek after the subscriptions, dimmed,
+    // and the unconfigured row never renders
+    expect(container.querySelector('[data-dsh-part="foot-card-payg-sep"]')?.textContent).toContain('PAYG')
+    const payg = [...container.querySelectorAll('[data-dsh-part="foot-card-payg"]')]
+    expect(payg).toHaveLength(1)
+    expect(payg[0]!.textContent).toContain('DeepSeek')
+    expect(payg[0]!.textContent).toContain('¥42.00')
+  })
+
+  it('the PAYG balance color follows the 1/10 USD thresholds with CNY at /7.2', () => {
+    // Given balances below $1, below $10 and above (one CNY row converting to $1)
+    const over = overview([
+      provider({ provider: 'openrouter', displayName: 'OpenRouter', credential: 'api-key', balance: { currency: 'USD', totalBalance: '0.50', updatedAt: 1 } }),
+      provider({ provider: 'deepseek', displayName: 'DeepSeek', credential: 'env', balance: { currency: 'CNY', totalBalance: '43.20', updatedAt: 1 } }),
+      provider({ provider: 'siliconflow', displayName: 'SiliconFlow', credential: 'api-key', balance: { currency: 'USD', totalBalance: '20.00', updatedAt: 1 } }),
+    ])
+    const { container } = render(<UsageFootCard {...cardProps(over)} />)
+
+    // Then the colors are red / yellow / uncolored, alphabetical by name
+    const payg = [...container.querySelectorAll('[data-dsh-part="foot-card-payg"]')]
+    expect(payg.map((row) => row.textContent)).toEqual(['DeepSeek¥43.20', 'OpenRouter$0.50', 'SiliconFlow$20.00'])
+    expect((payg[0]!.lastElementChild as HTMLElement).style.color).toBe('rgb(217, 119, 6)')
+    expect((payg[1]!.lastElementChild as HTMLElement).style.color).toBe('rgb(220, 38, 38)')
+    expect((payg[2]!.lastElementChild as HTMLElement).style.color).toBe('')
+  })
+
+  it('user sees no plan blocks and no PAYG separator when nothing qualifies', () => {
+    // Given a catalog with neither plans nor balances
+    const { container } = render(<UsageFootCard {...cardProps(overview([provider({ provider: 'zenmux', displayName: 'ZenMux' })]))} />)
+
+    // Then the LIMITS caption stands alone
+    expect(container.querySelector('[data-dsh-part="foot-card"]')?.textContent).toContain('LIMITS')
+    expect(container.querySelector('[data-dsh-part="foot-card-plans"]')).toBeNull()
+    expect(container.querySelector('[data-dsh-part="foot-card-payg-sep"]')).toBeNull()
+  })
+
+  it('the expired reset reads "reset" and a missing one renders no timer', () => {
+    // Given a window whose reset passed and one without a reset instant
+    const roster2 = roster()
+    roster2[0] = planProvider({ provider: 'kimi-coding', displayName: 'Kimi For Coding' }, [
+      { key: '5h', percent: 30, resetsAt: new Date(Date.now() - 60_000).toISOString() },
+      { key: 'month', percent: 55 },
+    ])
+    const { container } = render(<UsageFootCard {...cardProps(overview(roster2))} />)
+
+    // Then the countdown reads "reset" and the month row stays timer-less
+    const kimi = container.querySelectorAll('[data-dsh-part="foot-card-plans"]')[2]!
+    expect(kimi.textContent).toContain('reset')
+    const timers = kimi.textContent!.match(/reset/g)?.length ?? 0
+    expect(timers).toBe(1)
   })
 })
 
-describe('UsageFootCard visibility gates', () => {
+describe('UsageFootCard collapse state (chips strip)', () => {
+  it('user collapses the card into logo+percent chips and expands it back', () => {
+    // Given an expanded card with subscriptions and a PAYG balance
+    const over = overview([...roster(), deepseekBalance])
+    const { container } = render(<UsageFootCard {...cardProps(over)} />)
+
+    // When the user clicks the corner toggle
+    fireEvent.click(container.querySelector('[data-dsh-part="foot-card-toggle"]')!)
+
+    // Then the strip shows one chip per subscription (logo svg + hottest percent,
+    // colored by threshold) without LIMITS or PAYG, and the choice persists
+    const strip = container.querySelector('[data-dsh-part="foot-card-strip"]')!
+    expect(strip.textContent).not.toContain('LIMITS')
+    expect(strip.textContent).not.toContain('PAYG')
+    expect(strip.querySelectorAll('svg')).toHaveLength(3)
+    expect(strip.textContent).toContain('85%')
+    const chip = [...strip.querySelectorAll('span')].find((el) => el.getAttribute('title') === 'OpenAI 85%')!
+    expect(chip).toBeTruthy()
+    expect((chip as HTMLElement).style.color).toBe('rgb(220, 38, 38)')
+    expect(window.localStorage.getItem(FOOT_CARD_COLLAPSED_KEY)).toBe('1')
+
+    // When the user expands again
+    fireEvent.click(container.querySelector('[data-dsh-part="foot-card-toggle"]')!)
+
+    // Then the hierarchical card returns and the flag clears
+    expect(container.querySelectorAll('[data-dsh-part="foot-card-plans"]')).toHaveLength(3)
+    expect(window.localStorage.getItem(FOOT_CARD_COLLAPSED_KEY)).toBe('0')
+  })
+
+  it('user reads the loading state as a quiet strip while collapsed', () => {
+    // Given a collapsed card whose first fetch is still in flight
+    window.localStorage.setItem(FOOT_CARD_COLLAPSED_KEY, '1')
+
+    // When the card renders
+    const { container } = render(<UsageFootCard {...cardProps(null)} />)
+
+    // Then the strip renders a neutral placeholder instead of the loading prose
+    expect(container.querySelector('[data-dsh-part="foot-card-strip"]')?.textContent).toContain('—')
+  })
+
+  it('user opens the usage settings section from the collapsed strip', () => {
+    // Given a collapsed card
+    window.localStorage.setItem(FOOT_CARD_COLLAPSED_KEY, '1')
+    let opened = 0
+    const { container } = render(<UsageFootCard {...cardProps(overview(roster()), { onOpen: () => { opened += 1 } })} />)
+
+    // When the user clicks the strip body
+    fireEvent.click(container.querySelector('[data-dsh-part="foot-card-main"]')!)
+
+    // Then the open callback fires and the strip stays collapsed
+    expect(opened).toBe(1)
+    expect(container.querySelector('[data-dsh-part="foot-card-strip"]')).toBeTruthy()
+  })
+})
+
+describe('UsageFootCard locale and visibility gates', () => {
+  it('the inverted locale fallback reads English for non-zh documents', () => {
+    // Given an empty document language (HQ: English is the default now)
+    document.documentElement.lang = ''
+    const { container } = render(<UsageFootCard {...cardProps(overview(roster()))} />)
+
+    // Then the toggle copy is English
+    const toggle = container.querySelector('[data-dsh-part="foot-card-toggle"]')!
+    expect(toggle.getAttribute('aria-label')).toBe('Collapse the usage card')
+  })
+
+  it('user reads the card in Chinese after a language switch to zh', () => {
+    // Given an English-rendered card wired to a locale source
+    document.documentElement.lang = 'en'
+    const locale = fakeLocale()
+    const { container } = render(<UsageFootCard {...cardProps(overview(roster()), { locale: locale.locale })} />)
+    expect(container.querySelector('[data-dsh-part="foot-card-toggle"]')!.getAttribute('aria-label')).toBe('Collapse the usage card')
+
+    // When the document language switches to Chinese
+    document.documentElement.lang = 'zh'
+    act(() => { locale.emit() })
+
+    // Then the card copy follows without a reload
+    expect(container.querySelector('[data-dsh-part="foot-card-toggle"]')!.getAttribute('aria-label')).toBe('收起用量卡片')
+  })
+
   it('user loses the card while the plugin is disabled and gets it back on enable', () => {
     // Given a rendered card whose settings flag is on
-    document.documentElement.lang = 'zh'
     const form = fakeForm({ enabled: true })
-    const { container } = render(<UsageFootCard {...cardProps(overview([]), { settings: form.form })} />)
-    expect(container.querySelector('[data-dsh-part="foot-card"]')?.textContent).toContain('今日暂无用量')
+    const { container } = render(<UsageFootCard {...cardProps(overview(roster()), { settings: form.form })} />)
+    expect(container.querySelector('[data-dsh-part="foot-card"]')?.textContent).toContain('LIMITS')
 
     // When the Host answers with the plugin disabled
     act(() => { form.publish({ enabled: false }) })
@@ -276,12 +412,11 @@ describe('UsageFootCard visibility gates', () => {
     act(() => { form.publish({ enabled: true }) })
 
     // Then the card returns
-    expect(container.querySelector('[data-dsh-part="foot-card"]')?.textContent).toContain('今日暂无用量')
+    expect(container.querySelector('[data-dsh-part="foot-card"]')?.textContent).toContain('LIMITS')
   })
 
   it('user sees no card while the host serves no usage routes', () => {
     // Given the overview endpoint answering 404 (the host half is off)
-    document.documentElement.lang = 'zh'
     const store = fakeStore({ snapshot: null, status: 'error', error: 'usage /api/dsh-usage/overview failed: 404' })
 
     // When the foot card renders
@@ -293,7 +428,6 @@ describe('UsageFootCard visibility gates', () => {
 
   it('user reads the load failure on the card when no snapshot exists yet', () => {
     // Given a transport failure before the first snapshot (not a 404)
-    document.documentElement.lang = 'zh'
     const store = fakeStore({ snapshot: null, status: 'error', error: 'network unreachable' })
 
     // When the foot card renders
@@ -306,123 +440,27 @@ describe('UsageFootCard visibility gates', () => {
 
   it('user keeps the last snapshot when a later poll fails', () => {
     // Given a rendered card with data whose next poll fails
-    document.documentElement.lang = 'zh'
-    const store = fakeStore({ snapshot: overview([], { calls: 2, cost: 1.5, inputTokens: 100 }), status: 'ready', error: null })
+    const store = fakeStore({ snapshot: overview(roster()), status: 'ready', error: null })
     const { container } = render(<UsageFootCard {...cardProps(null, { store: store.store })} />)
 
     // When the store flips to the error state but keeps the snapshot
-    act(() => { store.set({ snapshot: overview([], { calls: 2, cost: 1.5, inputTokens: 100 }), status: 'error', error: 'network unreachable' }) })
+    act(() => { store.set({ snapshot: overview(roster()), status: 'error', error: 'network unreachable' }) })
 
-    // Then the card still shows the last good numbers
-    expect(container.querySelector('[data-dsh-part="foot-card"]')?.textContent).toContain('¥1.50')
-  })
-})
-
-
-describe('UsageFootCard collapse state', () => {
-  it('user collapses the card to a one-line strip and expands it back', () => {
-    // Given a rendered expanded card with priced usage
-    document.documentElement.lang = 'zh'
-    const over = overview([deepseekBalance], { inputTokens: 10_000, outputTokens: 2300, calls: 45, cost: 12.34 })
-    const { container } = render(<UsageFootCard {...cardProps(over)} />)
-    expect(container.querySelector('[data-dsh-part="foot-card"]')?.textContent).toContain('12.3k tokens')
-
-    // When the user clicks the corner toggle
-    fireEvent.click(container.querySelector('[data-dsh-part="foot-card-toggle"]')!)
-
-    // Then the card folds into a strip keeping the label and the spend, and the
-    // choice is persisted
-    const strip = container.querySelector('[data-dsh-part="foot-card-strip"]')
-    expect(strip?.textContent).toContain('今日消费')
-    expect(strip?.textContent).toContain('¥12.34')
-    expect(container.querySelector('[data-dsh-part="foot-card-usage"]')).toBeNull()
-    expect(container.querySelector('[data-dsh-part="foot-card-balances"]')).toBeNull()
-    expect(window.localStorage.getItem(FOOT_CARD_COLLAPSED_KEY)).toBe('1')
-
-    // When the user clicks the toggle again
-    fireEvent.click(container.querySelector('[data-dsh-part="foot-card-toggle"]')!)
-
-    // Then the full card returns and the flag clears
-    expect(container.querySelector('[data-dsh-part="foot-card-usage"]')?.textContent).toBe('12.3k tokens · 45 次调用')
-    expect(window.localStorage.getItem(FOOT_CARD_COLLAPSED_KEY)).toBe('0')
+    // Then the card still shows the last good rows
+    expect(container.querySelectorAll('[data-dsh-part="foot-card-plans"]')).toHaveLength(3)
   })
 
-  it('user reads the spending provider to the left of the collapsed spend label', () => {
-    // Given a collapsed card whose priced day row belongs to DeepSeek
-    document.documentElement.lang = 'zh'
-    window.localStorage.setItem(FOOT_CARD_COLLAPSED_KEY, '1')
-    const over = overview([deepseekBalance], { calls: 45, cost: 12.34 })
-    over.usage.today.providers = [
-      { provider: 'deepseek', totals: { ...emptyTotals(), calls: 45, cost: 12.34 }, models: [] },
-    ]
-
-    // When the card renders collapsed
-    const { container } = render(<UsageFootCard {...cardProps(over)} />)
-
-    // Then the provider name sits before the spend label in the strip
-    const text = container.querySelector('[data-dsh-part="foot-card-strip"]')?.textContent ?? ''
-    expect(text.indexOf('DeepSeek')).toBeGreaterThanOrEqual(0)
-    expect(text.indexOf('DeepSeek')).toBeLessThan(text.indexOf('今日消费'))
-    expect(text).toContain('¥12.34')
-  })
-
-  it('user reads no provider name when the collapsed headline falls back to tokens', () => {
-    // Given a collapsed card with unpriced usage only
-    document.documentElement.lang = 'zh'
-    window.localStorage.setItem(FOOT_CARD_COLLAPSED_KEY, '1')
-    const over = overview([deepseekBalance], { inputTokens: 3000, calls: 3 })
-
-    // When the card renders collapsed
-    const { container } = render(<UsageFootCard {...cardProps(over)} />)
-
-    // Then the token headline names no spender
-    const text = container.querySelector('[data-dsh-part="foot-card-strip"]')?.textContent ?? ''
-    expect(text).toContain('今日用量')
-    expect(text).not.toContain('DeepSeek')
-  })
-
-  it('user collapse choice survives a remount', () => {
-    // Given a persisted collapsed flag
-    document.documentElement.lang = 'zh'
-    window.localStorage.setItem(FOOT_CARD_COLLAPSED_KEY, '1')
-    const over = overview([deepseekBalance], { calls: 45, cost: 12.34 })
-
-    // When the card remounts
-    const { container } = render(<UsageFootCard {...cardProps(over)} />)
-
-    // Then it remounts as the strip, and expanding clears the flag
-    expect(container.querySelector('[data-dsh-part="foot-card-strip"]')?.textContent).toContain('¥12.34')
-    expect(container.querySelector('[data-dsh-part="foot-card-usage"]')).toBeNull()
-    fireEvent.click(container.querySelector('[data-dsh-part="foot-card-toggle"]')!)
-    expect(container.querySelector('[data-dsh-part="foot-card-usage"]')?.textContent).toContain('45 次调用')
-    expect(window.localStorage.getItem(FOOT_CARD_COLLAPSED_KEY)).toBe('0')
-  })
-
-  it('user opens the usage settings section from the collapsed strip', () => {
-    // Given a collapsed card
-    document.documentElement.lang = 'zh'
-    window.localStorage.setItem(FOOT_CARD_COLLAPSED_KEY, '1')
+  it('user opens the usage settings section from the card', () => {
+    // Given a rendered card
     let opened = 0
-    const over = overview([], { calls: 2, cost: 1.5 })
-    const { container } = render(<UsageFootCard {...cardProps(over, { onOpen: () => { opened += 1 } })} />)
+    const { container } = render(<UsageFootCard {...cardProps(overview(roster()), { onOpen: () => { opened += 1 } })} />)
 
-    // When the user clicks the strip body
-    fireEvent.click(container.querySelector('[data-dsh-part="foot-card-main"]')!)
+    // When the user clicks the card body
+    const card = container.querySelector<HTMLButtonElement>('[data-dsh-part="foot-card-main"]')
+    fireEvent.click(card!)
 
-    // Then the open callback fires and the strip stays collapsed
+    // Then the open callback fires once and the card stays rendered
     expect(opened).toBe(1)
-    expect(container.querySelector('[data-dsh-part="foot-card-strip"]')?.textContent).toContain('¥1.50')
-  })
-
-  it('user reads the loading and error states as a quiet strip while collapsed', () => {
-    // Given a collapsed card whose first fetch is still in flight
-    document.documentElement.lang = 'zh'
-    window.localStorage.setItem(FOOT_CARD_COLLAPSED_KEY, '1')
-
-    // When the card renders
-    const { container } = render(<UsageFootCard {...cardProps(null)} />)
-
-    // Then the strip renders a neutral placeholder instead of the loading prose
-    expect(container.querySelector('[data-dsh-part="foot-card-strip"]')?.textContent).toContain('—')
+    expect(container.querySelector('[data-dsh-part="foot-card"]')?.textContent).toContain('LIMITS')
   })
 })

@@ -136,15 +136,14 @@ describe('resolveConfig', () => {
 })
 
 describe('host apply', () => {
-  it('operator gets every usage route registered and the service started when enabled', async () => {
+  it('operator gets both routes registered and the service started when enabled', async () => {
     // Given an enabled plugin and a host context that records routes and listeners
     const { apply } = await loadPlugin()
     const { ctx, registered, listeners } = makeCtx()
     // When apply runs
     apply(ctx, {})
-    // Then every usage route is mounted and exactly one lifecycle listener is collecting
+    // Then both usage routes are mounted and exactly one lifecycle listener is collecting
     expect([...registered.keys()].sort()).toEqual([
-      '/api/dsh-usage/day',
       '/api/dsh-usage/overview',
       '/api/dsh-usage/refresh',
     ])
@@ -163,7 +162,7 @@ describe('host apply', () => {
     const { apply } = await loadPlugin()
     const first = makeCtx()
     apply(first.ctx, {})
-    expect(first.registered.size).toBe(3)
+    expect(first.registered.size).toBe(2)
 
     // The settings write reloads the profile row: the old fiber goes down and
     // the fresh activation carries the saved config.
@@ -182,7 +181,7 @@ describe('host apply', () => {
     // The successor serializes behind the predecessor's final ledger flush.
     expect(enabled.registered.size).toBe(0)
     await settle()
-    expect([...enabled.registered.keys()].sort()).toEqual(['/api/dsh-usage/day', '/api/dsh-usage/overview', '/api/dsh-usage/refresh'])
+    expect([...enabled.registered.keys()].sort()).toEqual(['/api/dsh-usage/overview', '/api/dsh-usage/refresh'])
     expect(enabled.listeners()).toBe(1)
   })
 
@@ -219,7 +218,7 @@ describe('host apply', () => {
     apply(third.ctx, {})
     expect(third.registered.size).toBe(0)
     await settle()
-    expect([...third.registered.keys()].sort()).toEqual(['/api/dsh-usage/day', '/api/dsh-usage/overview', '/api/dsh-usage/refresh'])
+    expect([...third.registered.keys()].sort()).toEqual(['/api/dsh-usage/overview', '/api/dsh-usage/refresh'])
     expect(third.listeners()).toBe(1)
     expect(skipped.listeners()).toBe(0)
   })
@@ -232,7 +231,7 @@ describe('host apply', () => {
     apply(second.ctx, {})
     expect(second.registered.size).toBe(0)
     expect(second.listeners()).toBe(0)
-    expect(first.registered.size).toBe(3)
+    expect(first.registered.size).toBe(2)
   })
 })
 
@@ -243,7 +242,7 @@ describe('live settings write (volatile path)', () => {
     const enabled = volatileField(true)
     const { ctx, registered, commitVolatile } = makeCtx()
     apply(ctx, { enabled })
-    expect(registered.size).toBe(3)
+    expect(registered.size).toBe(2)
     // When the user saves the disable, which the Loader commits into that same reference
     enabled.set(false)
     commitVolatile()
@@ -263,10 +262,10 @@ describe('live settings write (volatile path)', () => {
     // When the user saves the enable again
     enabled.set(true)
     commitVolatile()
-    // Then every usage route comes back on the same activation, after the stopped
+    // Then both routes come back on the same activation, after the stopped
     // instance's final ledger flush has been serialized behind
     await settle()
-    expect([...registered.keys()].sort()).toEqual(['/api/dsh-usage/day', '/api/dsh-usage/overview', '/api/dsh-usage/refresh'])
+    expect([...registered.keys()].sort()).toEqual(['/api/dsh-usage/overview', '/api/dsh-usage/refresh'])
   })
 
   it('operator saving an unrelated field keeps the running service and its routes', async () => {
@@ -280,7 +279,7 @@ describe('live settings write (volatile path)', () => {
     commitVolatile([['pollIntervalSec']])
     // Then the routes stay registered: the edit reached the running instance
     // instead of remounting it, so the ledger and the probe cycle survive
-    expect(registered.size).toBe(3)
+    expect(registered.size).toBe(2)
   })
 
   it('operator gets the newly committed cadence read at call time, not the activation value', async () => {
